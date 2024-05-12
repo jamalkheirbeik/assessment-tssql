@@ -26,3 +26,28 @@ const isUser = middleware(({ ctx: { req, res }, next }) => {
   }
 });
 export const protectedProcedure = publicProcedure.use(isUser);
+
+// admin procedure
+const isAdmin = middleware(({ ctx: { req, res }, next }) => {
+  try {
+    const { userId, isAdmin } = verifyAccessToken({ req });
+    if (!isAdmin) {
+      clearTokens({ res });
+      throw new trpcError({
+        code: "UNAUTHORIZED",
+      });
+    }
+
+    return next({
+      ctx: {
+        user: { userId },
+      },
+    });
+  } catch (error) {
+    clearTokens({ res });
+    throw new trpcError({
+      code: "UNAUTHORIZED",
+    });
+  }
+});
+export const adminProcedure = publicProcedure.use(isAdmin);

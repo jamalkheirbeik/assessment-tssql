@@ -22,9 +22,10 @@ describe("account routes", async () => {
       const userInDb = await db.query.users.findFirst({
         where: eq(schema.users.email, user.email),
       });
-      const userProfile = await createAuthenticatedCaller({
+      const authenticate = await createAuthenticatedCaller({
         userId: userInDb!.id,
-      }).account.me();
+      });
+      const userProfile = await authenticate.account.me();
       expect(userProfile.email).toBe(user.email);
       expect(userProfile.name).toBe(user.name);
       expect(userProfile.id).toBe(userInDb!.id);

@@ -7,6 +7,7 @@ const jwtSecret = ENV_CONFIG.JWT_SECRET;
 
 type MyJwtPayload = {
   userId: number;
+  isAdmin: boolean;
 };
 
 export const verifyRefreshToken = ({ req }: { req: FastifyRequest }) => {

@@ -28,7 +28,7 @@ export const auth = router({
       }
       setTokens({
         res,
-        payload: { userId: user.id },
+        payload: { userId: user.id, isAdmin: user.isAdmin },
       });
       return {
         success: true,
@@ -66,7 +66,7 @@ export const auth = router({
       }
       setTokens({
         res,
-        payload: { userId: user.id },
+        payload: { userId: user.id, isAdmin: user.isAdmin },
       });
       return {
         success: true,
@@ -146,6 +146,16 @@ export const auth = router({
     .mutation(async ({ ctx: { res }, input }) => {
       const { email, otpCode } = input;
       const emailNormalized = email.toLowerCase();
+      // check if user exists and email not verified
+      const user = await db.query.users.findFirst({
+        where: and(
+          eq(schema.users.email, emailNormalized),
+          eq(schema.users.emailVerified, false)
+        ),
+      });
+      if (!user) {
+        throw new trpcError({ code: "BAD_REQUEST" });
+      }
       // get requests for this email within the last 10 minutes
       const timeBefore10Minutes = new Date(Date.now() - 10 * 60 * 1000);
       const verifyRequest = await db.query.emailVerifications.findFirst({
@@ -187,7 +197,7 @@ export const auth = router({
       // perform login for user
       setTokens({
         res,
-        payload: { userId: verifyRequest.userId },
+        payload: { userId: verifyRequest.userId, isAdmin: user.isAdmin },
       });
       return {
         success: true,

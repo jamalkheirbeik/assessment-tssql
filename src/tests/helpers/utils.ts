@@ -1,7 +1,7 @@
 import { eq } from "drizzle-orm";
 import { db, schema } from "../../db/client";
 import { ENV_CONFIG } from "../../env.config";
-import { createCallerFactory } from "../../trpc/core";
+import { createCallerFactory, trpcError } from "../../trpc/core";
 import { appRouter } from "../../trpc/router";
 import type { FastifyReply, FastifyRequest } from "fastify";
 import jwt from "jsonwebtoken";
@@ -24,11 +24,21 @@ export const createCaller = (
   }
 )(appRouter);
 
-export const createAuthenticatedCaller = ({ userId }: { userId: number }) => {
-  const accessToken = jwt.sign({ userId }, jwtSecret);
+export const createAuthenticatedCaller = async ({
+  userId,
+}: {
+  userId: number;
+}) => {
+  const user = await db.query.users.findFirst({
+    where: eq(schema.users.id, userId),
+  });
+  if (!user) {
+    throw new trpcError({ code: "BAD_REQUEST" });
+  }
+  const accessToken = jwt.sign({ userId, isAdmin: user.isAdmin }, jwtSecret);
   return createCaller({
     req: { cookies: { accessToken } },
-    res: { setCookie: () => {} },
+    res: { setCookie: () => {}, clearCookie: () => {} },
   });
 };
 
@@ -47,7 +57,7 @@ export const setupUser = async (user: User) => {
   });
 
   //create authenticated caller
-  const authenticatedUser = createAuthenticatedCaller({
+  const authenticatedUser = await createAuthenticatedCaller({
     userId: userInDb!.id,
   });
 

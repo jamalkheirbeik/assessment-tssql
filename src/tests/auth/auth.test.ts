@@ -40,6 +40,7 @@ describe("auth routes", async () => {
       expect(userIndb!.updatedAt).toBeDefined();
       expect(userIndb!.emailVerified).toBe(false);
     });
+
     it("should throw error on duplicate user", async () => {
       await expect(createCaller({}).auth.register(user)).rejects.toThrowError(
         new trpcError({
@@ -48,6 +49,7 @@ describe("auth routes", async () => {
       );
     });
   });
+
   describe("login", async () => {
     const user = {
       email: "mail@mail.com",
@@ -61,6 +63,7 @@ describe("auth routes", async () => {
         })
       );
     });
+
     it("should login user if verified", async () => {
       await db
         .update(schema.users)

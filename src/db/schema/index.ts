@@ -32,6 +32,7 @@ export const users = sqliteTable(
 export const userRelations = relations(users, ({ many }) => ({
   teams: many(teams),
   emailVerifications: many(emailVerifications),
+  subscriptions: many(subscriptions), // only 1 should be active thought
 }));
 
 export const emailVerifications = sqliteTable("emailVerifications", {
@@ -94,17 +95,43 @@ export const teamsRelations = relations(teams, ({ one }) => ({
   }),
 }));
 
-// export const plans = sqliteTable("plans", {
-// todo: add plans table schema
-// });
+export const plans = sqliteTable("plans", {
+  id: integer("id").primaryKey().notNull(),
+  name: text("name").notNull(),
+  price: integer("price").notNull(),
+  createdAt: timestamp("createdAt").notNull(),
+  updatedAt: timestamp("updatedAt").notNull(),
+});
 
-// export const subscriptions = sqliteTable("subscriptions", {
-//   // todo: add subscriptions table schema
-// });
+export const subscriptions = sqliteTable("subscriptions", {
+  id: integer("id").primaryKey().notNull(),
+  userId: integer("userId")
+    .notNull()
+    .references(() => users.id, { onDelete: "restrict", onUpdate: "restrict" }),
+  planId: integer("planId")
+    .notNull()
+    .references(() => plans.id, { onDelete: "restrict", onUpdate: "restrict" }),
+  isCancelled: boolean("isCancelled").default(true),
+  validTo: timestamp("validTo").notNull(),
+  createdAt: timestamp("createdAt").notNull(),
+  updatedAt: timestamp("updatedAt").notNull(),
+});
 
-// export const orders = sqliteTable("orders", {
-//   // todo: add orders table schema
-// });
+export const subscriptionsRelations = relations(subscriptions, ({ one }) => ({
+  user: one(users, {
+    fields: [subscriptions.userId],
+    references: [users.id],
+  }),
+}));
+
+export const orders = sqliteTable("orders", {
+  id: integer("id").primaryKey().notNull(),
+  userId: integer("userId")
+    .notNull()
+    .references(() => users.id, { onDelete: "restrict", onUpdate: "restrict" }),
+  amount: integer("amount").notNull(),
+  createdAt: timestamp("createdAt").notNull(),
+});
 
 // export const subscriptionActivations = sqliteTable("subscriptionActivations", {
 //   // todo: add subscriptionActivations table schema

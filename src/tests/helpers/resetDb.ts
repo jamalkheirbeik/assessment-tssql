@@ -1,6 +1,8 @@
 import { db, schema } from "../../db/client";
 // import { ENV_CONFIG } from "../../env.config";
 import { sql } from "drizzle-orm";
+import bcryptjs from "bcryptjs";
+
 export default async () => {
   // if (!["development"].includes(ENV_CONFIG.NODE_ENV)) {
   //   console.log("🚫 Aborting for for non-development environment!");
@@ -22,5 +24,30 @@ export default async () => {
       })
     );
   });
-  console.log("✅ Database emptied");
+
+  // add admin & user accounts for testing
+  const hashedPassword = await bcryptjs.hash("123123", 10);
+  await db.insert(schema.users).values({
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    name: "admin",
+    email: "admin@mail.com",
+    hashedPassword,
+    locale: "en",
+    timezone: "Asia/Riyadh",
+    isAdmin: true,
+    emailVerified: true,
+  });
+  await db.insert(schema.users).values({
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    name: "user",
+    email: "user@mail.com",
+    hashedPassword,
+    locale: "en",
+    timezone: "Asia/Riyadh",
+    emailVerified: true,
+  });
+
+  console.log("✅ Database has been reset");
 };
