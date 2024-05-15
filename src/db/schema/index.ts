@@ -32,7 +32,7 @@ export const users = sqliteTable(
 export const userRelations = relations(users, ({ many }) => ({
   teams: many(teams),
   emailVerifications: many(emailVerifications),
-  subscriptions: many(subscriptions), // only 1 should be active thought
+  subscriptions: many(subscriptions),
 }));
 
 export const emailVerifications = sqliteTable("emailVerifications", {
@@ -111,8 +111,10 @@ export const subscriptions = sqliteTable("subscriptions", {
   planId: integer("planId")
     .notNull()
     .references(() => plans.id, { onDelete: "restrict", onUpdate: "restrict" }),
-  isCancelled: boolean("isCancelled").default(true),
-  validTo: timestamp("validTo").notNull(),
+  teamId: integer("teamId")
+    .notNull()
+    .references(() => teams.id, { onDelete: "restrict", onUpdate: "restrict" }),
+  isCancelled: boolean("isCancelled").default(false),
   createdAt: timestamp("createdAt").notNull(),
   updatedAt: timestamp("updatedAt").notNull(),
 });
@@ -122,17 +124,52 @@ export const subscriptionsRelations = relations(subscriptions, ({ one }) => ({
     fields: [subscriptions.userId],
     references: [users.id],
   }),
+  team: one(teams, {
+    fields: [subscriptions.teamId],
+    references: [teams.id],
+  }),
+  plan: one(plans, {
+    fields: [subscriptions.planId],
+    references: [plans.id],
+  }),
 }));
 
 export const orders = sqliteTable("orders", {
   id: integer("id").primaryKey().notNull(),
-  userId: integer("userId")
+  subscriptionId: integer("subscriptionId")
     .notNull()
-    .references(() => users.id, { onDelete: "restrict", onUpdate: "restrict" }),
+    .references(() => subscriptions.id, {
+      onDelete: "restrict",
+      onUpdate: "restrict",
+    }),
   amount: integer("amount").notNull(),
   createdAt: timestamp("createdAt").notNull(),
 });
 
-// export const subscriptionActivations = sqliteTable("subscriptionActivations", {
-//   // todo: add subscriptionActivations table schema
-// });
+export const ordersRelations = relations(orders, ({ one }) => ({
+  subscription: one(subscriptions, {
+    fields: [orders.subscriptionId],
+    references: [subscriptions.id],
+  }),
+}));
+
+export const subscriptionActivations = sqliteTable("subscriptionActivations", {
+  id: integer("id").primaryKey().notNull(),
+  orderId: integer("orderId")
+    .notNull()
+    .references(() => orders.id, {
+      onDelete: "restrict",
+      onUpdate: "restrict",
+    }),
+  createdAt: timestamp("createdAt").notNull(),
+});
+
+export const subscriptionActivationsRelations = relations(
+  subscriptionActivations,
+  ({ one }) => ({
+    order: one(orders, {
+      fields: [subscriptionActivations.orderId],
+      references: [orders.id],
+    }),
+  })
+);

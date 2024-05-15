@@ -92,14 +92,17 @@ describe("plans routes", async () => {
   describe("upgrade", async () => {
     it("should throw an error when passing non existing plan ID", async () => {
       const authenticatedUser = await createAuthenticatedCaller({ userId: 2 });
-      expect(authenticatedUser.plans.upgrade({ id: -1 })).rejects.toThrowError(
-        new trpcError({ code: "NOT_FOUND" })
-      );
+      expect(
+        authenticatedUser.plans.upgrade({ planId: -1, teamId: 1 })
+      ).rejects.toThrowError(new trpcError({ code: "NOT_FOUND" }));
     });
 
     it("should calculate the plan upgrade price", async () => {
       const authenticatedUser = await createAuthenticatedCaller({ userId: 2 });
-      const response = await authenticatedUser.plans.upgrade({ id: 2 });
+      const response = await authenticatedUser.plans.upgrade({
+        teamId: 1,
+        planId: 2,
+      });
       expect(response.price).toBeGreaterThanOrEqual(0);
     });
   });
@@ -107,7 +110,10 @@ describe("plans routes", async () => {
   describe("subscribe", async () => {
     it("should cancel prev sub and add a new one", async () => {
       const authenticatedUser = await createAuthenticatedCaller({ userId: 2 });
-      const response = await authenticatedUser.plans.subscribe({ id: 2 });
+      const response = await authenticatedUser.plans.subscribe({
+        teamId: 1,
+        planId: 2,
+      });
       expect(response.success).toBe(true);
     });
   });

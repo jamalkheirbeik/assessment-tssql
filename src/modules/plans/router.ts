@@ -7,7 +7,7 @@ import {
 } from "../../trpc/core";
 import { z } from "zod";
 import { db, schema } from "../../db/client";
-import { eq, ne, and, asc } from "drizzle-orm";
+import { eq, ne, and, asc, desc } from "drizzle-orm";
 
 export const plans = router({
   create: adminProcedure
@@ -60,42 +60,67 @@ export const plans = router({
     return { plans };
   }),
   upgrade: protectedProcedure
-    .input(z.object({ id: z.number() }))
+    .input(z.object({ planId: z.number(), teamId: z.number() }))
     .mutation(async ({ ctx: user, input }) => {
-      const { id } = input; // new plan id
+      const { planId, teamId } = input;
       const userId = user.user.userId;
+      console.log(userId);
       const plan = await db.query.plans.findFirst({
-        where: eq(schema.plans.id, id),
+        where: eq(schema.plans.id, planId),
       });
       // non existing plan
       if (plan === undefined) {
         throw new trpcError({ code: "NOT_FOUND" });
       }
-      const currentSubscription = await db.query.subscriptions.findFirst({
-        where: and(
-          eq(schema.subscriptions.userId, userId),
-          eq(schema.subscriptions.isCancelled, false)
-        ),
-      });
-      if (currentSubscription === undefined) return { price: plan.price };
-      const currentPlan = await db.query.plans.findFirst({
-        where: eq(schema.plans.id, currentSubscription.planId),
-      });
-      if (currentPlan === undefined) return { price: plan.price };
+
+      const lastActivation = await db
+        .select({
+          planPrice: schema.plans.price,
+          createdAt: schema.subscriptionActivations.createdAt,
+        })
+        .from(schema.subscriptions)
+        .innerJoin(
+          schema.plans,
+          eq(schema.subscriptions.planId, schema.plans.id)
+        )
+        .innerJoin(
+          schema.orders,
+          eq(schema.subscriptions.id, schema.orders.subscriptionId)
+        )
+        .innerJoin(
+          schema.subscriptionActivations,
+          eq(schema.subscriptionActivations.orderId, schema.orders.id)
+        )
+        .where(eq(schema.subscriptions.teamId, teamId))
+        .orderBy(desc(schema.subscriptionActivations.createdAt))
+        .limit(1);
+
+      // order payment not found
+      if (lastActivation.length === 0 || lastActivation[0] === undefined) {
+        return { price: plan.price };
+      }
+
+      const validTo = new Date(lastActivation[0].createdAt);
+      validTo.setDate(validTo.getDate() + 30);
+      const currentDate = new Date();
+      // outdated payment
+      if (validTo.getDate() - currentDate.getDate() <= 0) {
+        return { price: plan.price };
+      }
 
       const remainingDays = Math.floor(
-        Date.parse(currentSubscription.validTo.toString()) -
-          Date.parse(new Date().toString()) / 86400000
+        Date.parse(validTo.toString()) -
+          Date.parse(currentDate.toString()) / 86400000
       );
       const price =
-        plan.price - Math.floor((remainingDays * currentPlan?.price) / 30);
-
+        plan.price -
+        Math.floor((remainingDays * lastActivation[0].planPrice) / 30);
       return { price };
     }),
   subscribe: protectedProcedure
-    .input(z.object({ id: z.number() }))
+    .input(z.object({ planId: z.number(), teamId: z.number() }))
     .mutation(async ({ ctx: user, input }) => {
-      const { id } = input;
+      const { planId, teamId } = input;
       const userId = user.user.userId;
       // cancel prev subscriptions
       await db
@@ -108,14 +133,12 @@ export const plans = router({
           )
         );
       // add new subscription
-      const date = new Date();
-      date.setDate(date.getDate() + 30);
       await db.insert(schema.subscriptions).values({
         createdAt: new Date(),
         updatedAt: new Date(),
         userId: userId,
-        planId: id,
-        validTo: date,
+        planId: planId,
+        teamId: teamId,
       });
 
       return { success: true };

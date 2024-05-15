@@ -49,5 +49,14 @@ export default async () => {
     emailVerified: true,
   });
 
+  // add team
+  await db.insert(schema.teams).values({
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    userId: 2,
+    name: "Software Development Team",
+    isPersonal: false,
+  });
+
   console.log("✅ Database has been reset");
 };
